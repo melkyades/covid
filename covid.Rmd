@@ -1,0 +1,84 @@
+---
+title: "Covid"
+output:
+  html_document:
+    df_print: paged
+---
+
+La cantidad de contactos es una poisson 
+```{r}
+period = 60
+recovery_time=16
+case_count = rep(NA, period)
+active_count = rep(NA,period)
+infection_days = list()
+case_count[1] = 40000
+active_count[1] = case_count[1]
+prev_days = seq(recovery_time,1)
+sizes = rep(NA,recovery_time)
+for (i in 1:recovery_time) {sizes[i]=1.025^(i-1)}
+infection_days[[1]]=sample(prev_days, case_count[1], replace=T, prob=sizes/(sum(sizes)))
+```
+
+aaa
+
+```{r}
+quarantine=rep(NA,period)
+sequence=c(1.0,1,1,1,1,1,.1)
+for(i in 1:period)
+{
+  quarantine[i]=sequence[(i-1)%%7+1]
+}
+
+for(day in 1:(period-1))
+{
+    new_count <- 0
+    infectiousness=dlnorm(c(infection_days[[day]]), log(10), 0.23)*0.32
+    contacts=rpois(case_count[day], 4*quarantine[day])
+    
+    for (j in 1 : case_count[day]) {
+      new_count <- new_count + sum(runif(contacts[j])<infectiousness[j])
+    }
+
+    case_count[day+1] <- case_count[day] + new_count
+    infection_days[[day+1]] = c(infection_days[[day]]+1, rep(1, new_count))
+    active_count[day+1] = sum(infection_days[[day+1]] <= recovery_time)
+
+}
+
+infections=rep(0,period)
+recoveries=rep(0,period)
+for(day in 2:(period))
+{
+  infections[day] = case_count[day]-case_count[day-1]
+  recoveries[day] = sum(infection_days[[day-1]]==recovery_time)
+}
+
+
+colors=ifelse(quarantine < 1, "red", "blue")
+
+```
+
+```{r}
+plot(active_count, xlab="Días", ylab="Casos activos", col=colors)
+
+legend(50, 50000, legend=c("fase 0", "fase n"),
+       col=c("red", "blue"), cex=0.8, pch=c(1,1))
+
+lines(active_count)
+segments(seq(1,period), active_count, y1=active_count-recoveries,col="blue")
+segments(seq(1,period), active_count, y1=active_count+infections,col="red")
+
+legend(1, 80000, legend=c("nuevas infecciones", "nuevas recuperaciones"),
+       col=c("red", "blue"), lty=c(1,1), cex=0.8)
+
+for(day in 1:(period))
+{
+  v = infection_days[[day]]
+  infection_days[[day]] = subset(v,v<=recovery_time)
+}
+
+#boxplot(infection_days)
+
+
+```
